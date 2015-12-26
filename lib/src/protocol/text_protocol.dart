@@ -266,21 +266,22 @@ class QueryColumnSetReader extends SetReader {
 
   final ResultSetColumnDefinitionResponsePacket _reusableColumnPacket;
 
+  final FutureWrapper<bool> _reusableFutureWrapper;
+
   QueryColumnSetReader(this._columnCount, this._protocol)
       : this._reusableColumnPacket =
-            new ResultSetColumnDefinitionResponsePacket.reusable();
+            new ResultSetColumnDefinitionResponsePacket.reusable(),
+        this._reusableFutureWrapper = new FutureWrapper<bool>.reusable();
 
   Future<bool> next() => internalNext().future;
 
   FutureWrapper<bool> internalNext() {
     // TODO check dello stato
 
-    var response = _protocol
+    return _reusableFutureWrapper.reuse(_protocol
         ._readResultSetColumnDefinitionResponse(_reusableColumnPacket)
         .then(
-            (response) => response is ResultSetColumnDefinitionResponsePacket);
-
-    return new FutureWrapper(response);
+            (response) => response is ResultSetColumnDefinitionResponsePacket));
   }
 
   String get name => _reusableColumnPacket.orgName;
@@ -299,21 +300,22 @@ class QueryRowSetReader extends SetReader {
 
   final ResultSetRowResponsePacket _reusableRowPacket;
 
+  final FutureWrapper<bool> _reusableFutureWrapper;
+
   QueryRowSetReader(int columnCount, this._protocol)
       : this._columnCount = columnCount,
         this._reusableRowPacket =
-            new ResultSetRowResponsePacket.reusable(columnCount);
+            new ResultSetRowResponsePacket.reusable(columnCount),
+        this._reusableFutureWrapper = new FutureWrapper<bool>.reusable();
 
   Future<bool> next() => internalNext().future;
 
   FutureWrapper<bool> internalNext() {
     // TODO check dello stato
 
-    var response = _protocol
+    return _reusableFutureWrapper.reuse(_protocol
         ._readResultSetRowResponse(_reusableRowPacket)
-        .then((response) => response is ResultSetRowResponsePacket);
-
-    return new FutureWrapper(response);
+        .then((response) => response is ResultSetRowResponsePacket));
   }
 
   String getString(int index) => _reusableRowPacket.getString(index);
