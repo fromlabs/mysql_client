@@ -17,6 +17,15 @@ const int COM_STMT_PREPARE = 0x16;
 const int COM_STMT_CLOSE = 0x19;
 
 abstract class Protocol {
+  final FutureWrapper<PacketBuffer> _reusablePacketBufferFuture =
+      new FutureWrapper<PacketBuffer>.reusable();
+
+  final ReaderBuffer _reusableHeaderReaderBuffer = new ReaderBuffer.reusable();
+
+  final PacketBuffer _reusablePacketBuffer = new PacketBuffer.reusable();
+
+  final DataRange _reusableDataRange = new DataRange.reusable();
+
   final DataWriter _writer;
 
   final DataReader _reader;
@@ -25,17 +34,11 @@ abstract class Protocol {
 
   int _clientCapabilityFlags;
 
-  final ReaderBuffer _reusableHeaderReaderBuffer = new ReaderBuffer.reusable();
-
-  final PacketBuffer _reusablePacketBuffer = new PacketBuffer.reusable();
-
-  final DataRange _reusableDataRange = new DataRange.reusable();
-
   Protocol(this._writer, this._reader, this._serverCapabilityFlags,
       this._clientCapabilityFlags);
 
   FutureWrapper<PacketBuffer> _readPacketBuffer() {
-    return new FutureWrapper(_reader
+    return _reusablePacketBufferFuture.reuse(_reader
         .readBuffer(4, _reusableHeaderReaderBuffer)
         .then((headerReaderBuffer) => _readPacketPayloadBuffer()));
   }
@@ -56,7 +59,7 @@ abstract class Protocol {
   }
 
   Future<Packet> _readCommandResponse() =>
-      _readPacketBuffer().thenFuture((_) => _readCommandResponseInternal());
+      _readPacketBuffer().thenFuture((_) => _readCommandResponsePayload());
 
   bool _isOkPacket() => _reusablePacketBuffer.header == 0 &&
       _reusablePacketBuffer.payloadLength >= 7;
@@ -68,7 +71,7 @@ abstract class Protocol {
 
   bool _isLocalInFilePacket() => _reusablePacketBuffer.header == 0xfb;
 
-  Packet _readCommandResponseInternal() {
+  Packet _readCommandResponsePayload() {
     if (_isOkPacket()) {
       return _readOkPacket();
     } else if (_isErrorPacket()) {
@@ -78,7 +81,7 @@ abstract class Protocol {
     }
   }
 
-  Packet _readEOFResponseInternal() {
+  Packet _readEOFResponsePayload() {
     if (_isEOFPacket()) {
       return _readEOFPacket();
     } else if (_isErrorPacket()) {

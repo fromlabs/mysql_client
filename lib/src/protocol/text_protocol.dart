@@ -9,6 +9,17 @@ class QueryError extends Error {
 }
 
 class QueryCommandTextProtocol extends Protocol {
+  final ResultSetColumnDefinitionResponsePacket _reusableColumnPacket =
+      new ResultSetColumnDefinitionResponsePacket.reusable();
+
+  final FutureWrapper<Packet> _reusableRowPacketFuture =
+      new FutureWrapper<Packet>.reusable();
+
+  final FutureWrapper<Packet> _reusableColumnPacketFuture =
+      new FutureWrapper<Packet>.reusable();
+
+  ResultSetRowResponsePacket _reusableRowPacket;
+
   QueryCommandTextProtocol(DataWriter writer, DataReader reader,
       int serverCapabilityFlags, int clientCapabilityFlags)
       : super(writer, reader, serverCapabilityFlags, clientCapabilityFlags);
@@ -47,21 +58,18 @@ class QueryCommandTextProtocol extends Protocol {
     _writer.writeBuffer(buffer);
   }
 
-  Future<Packet> _readCommandQueryResponse() => _readPacketBuffer()
-      .thenFuture((_) => _readCommandQueryResponseInternal());
+  Future<Packet> _readCommandQueryResponse() =>
+      _readPacketBuffer().thenFuture((_) => _readCommandQueryResponsePayload());
 
-  FutureWrapper<
-      ResultSetColumnDefinitionResponsePacket> _readResultSetColumnDefinitionResponse(
-          ResultSetColumnDefinitionResponsePacket reusablePacket) =>
-      new FutureWrapper(_readPacketBuffer().then((_) =>
-          _readResultSetColumnDefinitionResponseInternal(reusablePacket)));
+  FutureWrapper<Packet> _readResultSetColumnDefinitionResponse() =>
+      _reusableColumnPacketFuture.reuse(_readPacketBuffer()
+          .then((_) => _readResultSetColumnDefinitionResponsePayload()));
 
-  FutureWrapper<ResultSetRowResponsePacket> _readResultSetRowResponse(
-          ResultSetRowResponsePacket reusablePacket) =>
-      new FutureWrapper(_readPacketBuffer()
-          .then((_) => _readResultSetRowResponseInternal(reusablePacket)));
+  FutureWrapper<Packet> _readResultSetRowResponse() =>
+      _reusableRowPacketFuture.reuse(
+          _readPacketBuffer().then((_) => _readResultSetRowResponsePayload()));
 
-  Packet _readCommandQueryResponseInternal() {
+  Packet _readCommandQueryResponsePayload() {
     if (_isOkPacket()) {
       return _readOkPacket();
     } else if (_isErrorPacket()) {
@@ -73,25 +81,23 @@ class QueryCommandTextProtocol extends Protocol {
     }
   }
 
-  Packet _readResultSetColumnDefinitionResponseInternal(
-      ResultSetColumnDefinitionResponsePacket reusablePacket) {
+  Packet _readResultSetColumnDefinitionResponsePayload() {
     if (_isErrorPacket()) {
       return _readErrorPacket();
     } else if (_isEOFPacket()) {
       return _readEOFPacket();
     } else {
-      return _readResultSetColumnDefinitionResponsePacket(reusablePacket);
+      return _readResultSetColumnDefinitionResponsePacket();
     }
   }
 
-  Packet _readResultSetRowResponseInternal(
-      ResultSetRowResponsePacket reusablePacket) {
+  Packet _readResultSetRowResponsePayload() {
     if (_isErrorPacket()) {
       return _readErrorPacket();
     } else if (_isEOFPacket()) {
       return _readEOFPacket();
     } else {
-      return _readResultSetRowResponsePacket(reusablePacket);
+      return _readResultSetRowResponsePacket();
     }
   }
 
@@ -104,81 +110,83 @@ class QueryCommandTextProtocol extends Protocol {
         .readFixedLengthDataRange(1, _reusableDataRange)
         .toInt();
 
+    this._reusableRowPacket =
+        new ResultSetRowResponsePacket.reusable(packet._columnCount);
+
     _reusablePacketBuffer.free();
     _reusableDataRange.free();
 
     return packet;
   }
 
-  ResultSetColumnDefinitionResponsePacket _readResultSetColumnDefinitionResponsePacket(
-      ResultSetColumnDefinitionResponsePacket reusablePacket) {
-    var packet = reusablePacket.reuse(
+  ResultSetColumnDefinitionResponsePacket _readResultSetColumnDefinitionResponsePacket() {
+    var packet = _reusableColumnPacket.reuse(
         _reusablePacketBuffer.sequenceId, _reusablePacketBuffer.payloadLength);
 
     var dataRange;
     var i = 0;
     // lenenc_str     catalog
-    dataRange = reusablePacket.getReusableRange(i++);
+    dataRange = _reusableColumnPacket.getReusableRange(i++);
     _reusablePacketBuffer.payload.readFixedLengthDataRange(
         _reusablePacketBuffer.payload
             .readLengthEncodedDataRange(dataRange)
             .toInt(),
         dataRange);
     // lenenc_str     schema
-    dataRange = reusablePacket.getReusableRange(i++);
+    dataRange = _reusableColumnPacket.getReusableRange(i++);
     _reusablePacketBuffer.payload.readFixedLengthDataRange(
         _reusablePacketBuffer.payload
             .readLengthEncodedDataRange(dataRange)
             .toInt(),
         dataRange);
     // lenenc_str     table
-    dataRange = reusablePacket.getReusableRange(i++);
+    dataRange = _reusableColumnPacket.getReusableRange(i++);
     _reusablePacketBuffer.payload.readFixedLengthDataRange(
         _reusablePacketBuffer.payload
             .readLengthEncodedDataRange(dataRange)
             .toInt(),
         dataRange);
     // lenenc_str     org_table
-    dataRange = reusablePacket.getReusableRange(i++);
+    dataRange = _reusableColumnPacket.getReusableRange(i++);
     _reusablePacketBuffer.payload.readFixedLengthDataRange(
         _reusablePacketBuffer.payload
             .readLengthEncodedDataRange(dataRange)
             .toInt(),
         dataRange);
     // lenenc_str     name
-    dataRange = reusablePacket.getReusableRange(i++);
+    dataRange = _reusableColumnPacket.getReusableRange(i++);
     _reusablePacketBuffer.payload.readFixedLengthDataRange(
         _reusablePacketBuffer.payload
             .readLengthEncodedDataRange(dataRange)
             .toInt(),
         dataRange);
     // lenenc_str     org_name
-    dataRange = reusablePacket.getReusableRange(i++);
+    dataRange = _reusableColumnPacket.getReusableRange(i++);
     _reusablePacketBuffer.payload.readFixedLengthDataRange(
         _reusablePacketBuffer.payload
             .readLengthEncodedDataRange(dataRange)
             .toInt(),
         dataRange);
     // lenenc_int     length of fixed-length fields [0c]
-    dataRange = reusablePacket.getReusableRange(i++);
+    dataRange = _reusableColumnPacket.getReusableRange(i++);
     _reusablePacketBuffer.payload.readLengthEncodedDataRange(dataRange);
     // 2              character set
-    dataRange = reusablePacket.getReusableRange(i++);
+    dataRange = _reusableColumnPacket.getReusableRange(i++);
     _reusablePacketBuffer.payload.readFixedLengthDataRange(2, dataRange);
     // 4              column length
-    dataRange = reusablePacket.getReusableRange(i++);
+    dataRange = _reusableColumnPacket.getReusableRange(i++);
     _reusablePacketBuffer.payload.readFixedLengthDataRange(4, dataRange);
     // 1              type
-    dataRange = reusablePacket.getReusableRange(i++);
+    dataRange = _reusableColumnPacket.getReusableRange(i++);
     _reusablePacketBuffer.payload.readFixedLengthDataRange(1, dataRange);
     // 2              flags
-    dataRange = reusablePacket.getReusableRange(i++);
+    dataRange = _reusableColumnPacket.getReusableRange(i++);
     _reusablePacketBuffer.payload.readFixedLengthDataRange(2, dataRange);
     // 1              decimals
-    dataRange = reusablePacket.getReusableRange(i++);
+    dataRange = _reusableColumnPacket.getReusableRange(i++);
     _reusablePacketBuffer.payload.readFixedLengthDataRange(1, dataRange);
     // 2              filler [00] [00]
-    dataRange = reusablePacket.getReusableRange(i++);
+    dataRange = _reusableColumnPacket.getReusableRange(i++);
     _reusablePacketBuffer.payload.readFixedLengthDataRange(2, dataRange);
 
     _reusablePacketBuffer.free();
@@ -187,14 +195,13 @@ class QueryCommandTextProtocol extends Protocol {
     return packet;
   }
 
-  ResultSetRowResponsePacket _readResultSetRowResponsePacket(
-      ResultSetRowResponsePacket reusablePacket) {
-    var packet = reusablePacket.reuse(
+  ResultSetRowResponsePacket _readResultSetRowResponsePacket() {
+    var packet = _reusableRowPacket.reuse(
         _reusablePacketBuffer.sequenceId, _reusablePacketBuffer.payloadLength);
 
     var i = 0;
     while (!_reusablePacketBuffer.payload.isAllRead) {
-      var reusableRange = reusablePacket.getReusableRange(i++);
+      var reusableRange = _reusableRowPacket.getReusableRange(i++);
       if (_reusablePacketBuffer.payload.checkOneLengthInteger() !=
           PREFIX_NULL) {
         _reusablePacketBuffer.payload.readFixedLengthDataRange(
@@ -234,6 +241,8 @@ class QueryResult {
         this._protocol = null;
 
   QueryColumnSetReader get columnSetReader {
+    // TODO creare un solo reader
+
     // TODO check dello stato
 
     _columnSetReader = new QueryColumnSetReader(columnCount, _protocol);
@@ -242,6 +251,8 @@ class QueryResult {
   }
 
   QueryRowSetReader get rowSetReader {
+    // TODO creare un solo reader
+
     // TODO check dello stato
 
     _rowSetReader = new QueryRowSetReader(columnCount, _protocol);
@@ -260,72 +271,65 @@ class QueryResult {
 }
 
 class QueryColumnSetReader extends SetReader {
+  final FutureWrapper<bool> _reusableFutureWrapper =
+      new FutureWrapper<bool>.reusable();
+
   final int _columnCount;
 
   final QueryCommandTextProtocol _protocol;
 
-  final ResultSetColumnDefinitionResponsePacket _reusableColumnPacket;
+  QueryColumnSetReader(this._columnCount, this._protocol);
 
-  final FutureWrapper<bool> _reusableFutureWrapper;
-
-  QueryColumnSetReader(this._columnCount, this._protocol)
-      : this._reusableColumnPacket =
-            new ResultSetColumnDefinitionResponsePacket.reusable(),
-        this._reusableFutureWrapper = new FutureWrapper<bool>.reusable();
-
-  Future<bool> next() => internalNext().future;
+  Future<bool> next() => internalNext().asFuture;
 
   FutureWrapper<bool> internalNext() {
     // TODO check dello stato
 
     return _reusableFutureWrapper.reuse(_protocol
-        ._readResultSetColumnDefinitionResponse(_reusableColumnPacket)
+        ._readResultSetColumnDefinitionResponse()
         .then(
             (response) => response is ResultSetColumnDefinitionResponsePacket));
   }
 
-  String get name => _reusableColumnPacket.orgName;
+  String get name => _protocol._reusableColumnPacket.orgName;
 
   void close() {
     // TODO check dello stato
 
-    _reusableColumnPacket.free();
+    _protocol._reusableColumnPacket.free();
   }
 }
 
 class QueryRowSetReader extends SetReader {
+  final FutureWrapper<bool> _reusableFutureWrapper =
+      new FutureWrapper<bool>.reusable();
+
   final int _columnCount;
 
   final QueryCommandTextProtocol _protocol;
 
-  final ResultSetRowResponsePacket _reusableRowPacket;
-
-  final FutureWrapper<bool> _reusableFutureWrapper;
-
   QueryRowSetReader(int columnCount, this._protocol)
-      : this._columnCount = columnCount,
-        this._reusableRowPacket =
-            new ResultSetRowResponsePacket.reusable(columnCount),
-        this._reusableFutureWrapper = new FutureWrapper<bool>.reusable();
+      : this._columnCount = columnCount;
 
-  Future<bool> next() => internalNext().future;
+  Future<bool> next() => internalNext().asFuture;
 
   FutureWrapper<bool> internalNext() {
     // TODO check dello stato
 
     return _reusableFutureWrapper.reuse(_protocol
-        ._readResultSetRowResponse(_reusableRowPacket)
+        ._readResultSetRowResponse()
         .then((response) => response is ResultSetRowResponsePacket));
   }
 
-  String getString(int index) => _reusableRowPacket.getString(index);
+  String getString(int index) => _protocol._reusableRowPacket.getString(index);
 
-  String getUTF8String(int index) => _reusableRowPacket.getUTF8String(index);
+  String getUTF8String(int index) =>
+      _protocol._reusableRowPacket.getUTF8String(index);
 
   void close() {
     // TODO check dello stato
 
-    _reusableRowPacket.free();
+    _protocol._reusableRowPacket.free();
   }
 }
 

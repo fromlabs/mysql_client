@@ -29,10 +29,8 @@ class PreparedStatementProtocol extends Protocol {
   Future<Packet> _readCommandStatementPrepareResponse() => _readPacketBuffer()
       .thenFuture((_) => _readCommandStatementPrepareResponseInternal());
 
-  _readResultSetColumnDefinitionResponse(
-          ResultSetColumnDefinitionResponsePacket reusablePacket) =>
-      _queryCommandTextProtocol
-          ._readResultSetColumnDefinitionResponse(reusablePacket);
+  _readResultSetColumnDefinitionResponse() =>
+      _queryCommandTextProtocol._readResultSetColumnDefinitionResponse();
 
   Packet _readCommandStatementPrepareResponseInternal() {
     if (_isErrorPacket()) {
@@ -149,15 +147,14 @@ class PreparedStatement {
 }
 
 class StatementColumnSetReader extends SetReader {
+  final ResultSetColumnDefinitionResponsePacket _reusableColumnPacket =
+      new ResultSetColumnDefinitionResponsePacket.reusable();
+
   final int _columnCount;
 
   final PreparedStatementProtocol _protocol;
 
-  final ResultSetColumnDefinitionResponsePacket _reusableColumnPacket;
-
-  StatementColumnSetReader(this._columnCount, this._protocol)
-      : this._reusableColumnPacket =
-            new ResultSetColumnDefinitionResponsePacket.reusable();
+  StatementColumnSetReader(this._columnCount, this._protocol);
 
   Future<bool> next() {
     var value = _columnCount > 0 ? internalNext() : false;
@@ -167,8 +164,7 @@ class StatementColumnSetReader extends SetReader {
   internalNext() {
     // TODO check dello stato
 
-    var response =
-        _protocol._readResultSetColumnDefinitionResponse(_reusableColumnPacket);
+    var response = _protocol._readResultSetColumnDefinitionResponse();
 
     return response is Future
         ? response.then(

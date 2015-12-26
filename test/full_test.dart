@@ -87,7 +87,7 @@ abstract class SpeedTest {
       while (true) {
         // var next = await columnSetReader.next();
         var next = columnSetReader.internalNext();
-        next = next.isFuture ? await next.future : next.value;
+        next = next.isFuture ? await next.asFuture : next.asValue;
         if (!next) {
           break;
         }
@@ -99,7 +99,7 @@ abstract class SpeedTest {
       while (true) {
         // var next = await rowSetReader.next();
         var next = rowSetReader.internalNext();
-        next = next.isFuture ? await next.future : next.value;
+        next = next.isFuture ? await next.asFuture : next.asValue;
         if (!next) {
           break;
         }

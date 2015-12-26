@@ -23,9 +23,9 @@ class FutureWrapper<T> {
 
   bool get isFuture => _wrapped is Future;
 
-  T get value => _wrapped;
+  T get asValue => _wrapped;
 
-  Future<T> get future =>
+  Future<T> get asFuture =>
       _wrapped is Future ? _wrapped : new Future.value(_wrapped);
 
   then(onValue(T value)) =>
