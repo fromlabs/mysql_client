@@ -34,13 +34,29 @@ abstract class Protocol {
   Protocol(this._writer, this._reader, this._serverCapabilityFlags,
       this._clientCapabilityFlags);
 
-  Future<Packet> _readCommandResponse() {
-    var value = _readPacketBuffer();
-    var value2 = value is Future
-        ? value.then((_) => _readCommandResponseInternal())
-        : _readCommandResponseInternal();
-    return value2 is Future ? value2 : new Future.value(value2);
+  FutureWrapper<PacketBuffer> _readPacketBuffer() {
+    return new FutureWrapper(_reader
+        .readBuffer(4, _reusableHeaderReaderBuffer)
+        .then((headerReaderBuffer) => _readPacketPayloadBuffer()));
   }
+
+  _readPacketPayloadBuffer() {
+    var payloadLength = _reusableHeaderReaderBuffer
+        .readFixedLengthDataRange(3, _reusableDataRange)
+        .toInt();
+    var sequenceId = _reusableHeaderReaderBuffer.readOneLengthInteger();
+
+    _reusableHeaderReaderBuffer.free();
+    _reusableDataRange.free();
+
+    return _reader
+        .readBuffer(payloadLength, _reusablePacketBuffer.payload)
+        .then((payloadReaderBuffer) =>
+            _reusablePacketBuffer.reuse(sequenceId, payloadReaderBuffer));
+  }
+
+  Future<Packet> _readCommandResponse() =>
+      _readPacketBuffer().thenFuture((_) => _readCommandResponseInternal());
 
   bool _isOkPacket() => _reusablePacketBuffer.header == 0 &&
       _reusablePacketBuffer.payloadLength >= 7;
@@ -217,32 +233,6 @@ abstract class Protocol {
       packet._info = _reusablePacketBuffer.payload
           .readRestOfPacketDataRange(_reusableDataRange)
           .toString();
-    }
-  }
-
-  _readPacketBuffer() {
-    var value = _reader.readBuffer(4, _reusableHeaderReaderBuffer);
-    return value is Future
-        ? value.then((headerReaderBuffer) => _readPacketBufferInternal())
-        : _readPacketBufferInternal();
-  }
-
-  _readPacketBufferInternal() {
-    var payloadLength = _reusableHeaderReaderBuffer
-        .readFixedLengthDataRange(3, _reusableDataRange)
-        .toInt();
-    var sequenceId = _reusableHeaderReaderBuffer.readOneLengthInteger();
-
-    _reusableHeaderReaderBuffer.free();
-    _reusableDataRange.free();
-
-    var value =
-        _reader.readBuffer(payloadLength, _reusablePacketBuffer.payload);
-    if (value is Future) {
-      return value.then((payloadReaderBuffer) =>
-          _reusablePacketBuffer.reuse(sequenceId, payloadReaderBuffer));
-    } else {
-      return _reusablePacketBuffer.reuse(sequenceId, value);
     }
   }
 }

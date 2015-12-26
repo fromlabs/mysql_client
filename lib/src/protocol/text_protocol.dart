@@ -47,29 +47,19 @@ class QueryCommandTextProtocol extends Protocol {
     _writer.writeBuffer(buffer);
   }
 
-  Future<Packet> _readCommandQueryResponse() {
-    var value = _readPacketBuffer();
-    var value2 = value is Future
-        ? value.then((_) => _readCommandQueryResponseInternal())
-        : _readCommandQueryResponseInternal();
-    return value2 is Future ? value2 : new Future.value(value2);
-  }
+  Future<Packet> _readCommandQueryResponse() => _readPacketBuffer()
+      .thenFuture((_) => _readCommandQueryResponseInternal());
 
-  _readResultSetColumnDefinitionResponse(
-      ResultSetColumnDefinitionResponsePacket reusablePacket) {
-    var value = _readPacketBuffer();
-    return value is Future
-        ? value.then((_) =>
-            _readResultSetColumnDefinitionResponseInternal(reusablePacket))
-        : _readResultSetColumnDefinitionResponseInternal(reusablePacket);
-  }
+  FutureWrapper<
+      ResultSetColumnDefinitionResponsePacket> _readResultSetColumnDefinitionResponse(
+          ResultSetColumnDefinitionResponsePacket reusablePacket) =>
+      new FutureWrapper(_readPacketBuffer().then((_) =>
+          _readResultSetColumnDefinitionResponseInternal(reusablePacket)));
 
-  _readResultSetRowResponse(ResultSetRowResponsePacket reusablePacket) {
-    var value = _readPacketBuffer();
-    return value is Future
-        ? value.then((_) => _readResultSetRowResponseInternal(reusablePacket))
-        : _readResultSetRowResponseInternal(reusablePacket);
-  }
+  FutureWrapper<ResultSetRowResponsePacket> _readResultSetRowResponse(
+          ResultSetRowResponsePacket reusablePacket) =>
+      new FutureWrapper(_readPacketBuffer()
+          .then((_) => _readResultSetRowResponseInternal(reusablePacket)));
 
   Packet _readCommandQueryResponseInternal() {
     if (_isOkPacket()) {
@@ -280,21 +270,17 @@ class QueryColumnSetReader extends SetReader {
       : this._reusableColumnPacket =
             new ResultSetColumnDefinitionResponsePacket.reusable();
 
-  Future<bool> next() {
-    var value = internalNext();
-    return value is Future ? value : new Future.value(value);
-  }
+  Future<bool> next() => internalNext().future;
 
-  internalNext() {
+  FutureWrapper<bool> internalNext() {
     // TODO check dello stato
 
-    var response =
-        _protocol._readResultSetColumnDefinitionResponse(_reusableColumnPacket);
+    var response = _protocol
+        ._readResultSetColumnDefinitionResponse(_reusableColumnPacket)
+        .then(
+            (response) => response is ResultSetColumnDefinitionResponsePacket);
 
-    return response is Future
-        ? response.then(
-            (response) => response is ResultSetColumnDefinitionResponsePacket)
-        : response is ResultSetColumnDefinitionResponsePacket;
+    return new FutureWrapper(response);
   }
 
   String get name => _reusableColumnPacket.orgName;
@@ -318,19 +304,16 @@ class QueryRowSetReader extends SetReader {
         this._reusableRowPacket =
             new ResultSetRowResponsePacket.reusable(columnCount);
 
-  Future<bool> next() {
-    var value = internalNext();
-    return value is Future ? value : new Future.value(value);
-  }
+  Future<bool> next() => internalNext().future;
 
-  internalNext() {
+  FutureWrapper<bool> internalNext() {
     // TODO check dello stato
 
-    var response = _protocol._readResultSetRowResponse(_reusableRowPacket);
+    var response = _protocol
+        ._readResultSetRowResponse(_reusableRowPacket)
+        .then((response) => response is ResultSetRowResponsePacket);
 
-    return response is Future
-        ? response.then((response) => response is ResultSetRowResponsePacket)
-        : response is ResultSetRowResponsePacket;
+    return new FutureWrapper(response);
   }
 
   String getString(int index) => _reusableRowPacket.getString(index);

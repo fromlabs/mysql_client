@@ -12,6 +12,7 @@ import "package:mysql_client/src/reader_buffer.dart";
 import "package:mysql_client/src/packet_buffer.dart";
 import 'package:mysql_client/src/data_reader.dart';
 import 'package:mysql_client/src/data_writer.dart';
+import 'package:mysql_client/src/future_wrapper.dart';
 
 part "protocol/base_protocol.dart";
 part "protocol/connection_protocol.dart";

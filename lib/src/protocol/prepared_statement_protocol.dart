@@ -26,13 +26,8 @@ class PreparedStatementProtocol extends Protocol {
         response.statementId, response.numColumns, response.numParams, this);
   }
 
-  Future<Packet> _readCommandStatementPrepareResponse() {
-    var value = _readPacketBuffer();
-    var value2 = value is Future
-        ? value.then((_) => _readCommandStatementPrepareResponseInternal())
-        : _readCommandStatementPrepareResponseInternal();
-    return value2 is Future ? value2 : new Future.value(value2);
-  }
+  Future<Packet> _readCommandStatementPrepareResponse() => _readPacketBuffer()
+      .thenFuture((_) => _readCommandStatementPrepareResponseInternal());
 
   _readResultSetColumnDefinitionResponse(
           ResultSetColumnDefinitionResponsePacket reusablePacket) =>

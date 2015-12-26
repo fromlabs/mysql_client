@@ -8,6 +8,7 @@ import "dart:collection";
 
 import "package:mysql_client/src/data_chunk.dart";
 import "package:mysql_client/src/reader_buffer.dart";
+import 'package:mysql_client/src/future_wrapper.dart';
 
 class DataReader {
   final Queue<DataChunk> _chunks = new Queue();
@@ -20,8 +21,9 @@ class DataReader {
     this._stream.listen(_onData);
   }
 
-  readBuffer(int length, ReaderBuffer reusableBuffer) =>
-      _readBuffer(0, length, length, reusableBuffer);
+  FutureWrapper<ReaderBuffer> readBuffer(
+          int length, ReaderBuffer reusableBuffer) =>
+      new FutureWrapper(_readBuffer(0, length, length, reusableBuffer));
 
   _readBuffer(int reusableChunks, int totalLength, int leftLength,
       ReaderBuffer reusableBuffer) {

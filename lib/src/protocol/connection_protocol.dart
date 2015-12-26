@@ -120,13 +120,8 @@ class ConnectionProtocol extends Protocol {
     _writer.writeBuffer(buffer);
   }
 
-  Future<Packet> _readInitialHandshakeResponse() {
-    var value = _readPacketBuffer();
-    var value2 = value is Future
-        ? value.then((_) => _readInitialHandshakeResponseInternal())
-        : _readInitialHandshakeResponseInternal();
-    return value2 is Future ? value2 : new Future.value(value2);
-  }
+  Future<Packet> _readInitialHandshakeResponse() => _readPacketBuffer()
+      .thenFuture((_) => _readInitialHandshakeResponseInternal());
 
   Packet _readInitialHandshakeResponseInternal() {
     if (_isErrorPacket()) {

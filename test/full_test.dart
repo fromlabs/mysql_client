@@ -85,9 +85,9 @@ abstract class SpeedTest {
       // column definitions
       var columnSetReader = queryResult.columnSetReader;
       while (true) {
-        // var next = await columnSetReader.next();
-        var next = columnSetReader.internalNext();
-        next = next is Future ? await next : next;
+        var next = await columnSetReader.next();
+        // var next = columnSetReader.internalNext();
+        // next = next is Future ? await next : next;
         if (!next) {
           break;
         }
@@ -97,9 +97,9 @@ abstract class SpeedTest {
       // rows
       var rowSetReader = queryResult.rowSetReader;
       while (true) {
-        // var next = await rowSetReader.next();
-        var next = rowSetReader.internalNext();
-        next = next is Future ? await next : next;
+        var next = await rowSetReader.next();
+        // var next = rowSetReader.internalNext();
+        // next = next is Future ? await next : next;
         if (!next) {
           break;
         }
