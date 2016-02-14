@@ -33,6 +33,8 @@ class QueryError extends Error {
   String toString() => "QueryError: $message";
 }
 
+// TODO statement
+/*
 class PreparedStatementError extends Error {
   final String message;
 
@@ -41,6 +43,7 @@ class PreparedStatementError extends Error {
   @override
   String toString() => "PreparedStatementError: $message";
 }
+*/
 
 class ColumnDefinition {
   final String name;
@@ -49,7 +52,22 @@ class ColumnDefinition {
   ColumnDefinition(this.name, this.type);
 }
 
-abstract class ConnectionPool {
+abstract class ConnectionFactory {
+  factory ConnectionFactory() {
+    return new ConnectionFactoryImpl();
+  }
+
+  Future<Connection> connect(host, int port, String userName, String password,
+      [String database]);
+}
+
+abstract class Closable {
+  bool get isClosed;
+
+  Future close();
+}
+
+abstract class ConnectionPool implements Closable {
   factory ConnectionPool(
           {host,
           int port,
@@ -67,30 +85,31 @@ abstract class ConnectionPool {
           maxConnections: maxConnections,
           connectionTimeout: connectionTimeout);
 
-  bool get isClosed;
-
   Future<Connection> request();
-
-  Future close();
 }
 
-abstract class ConnectionFactory {
-  factory ConnectionFactory() {
-    return new ConnectionFactoryImpl();
-  }
-
-  Future<Connection> connect(host, int port, String userName, String password,
-      [String database]);
-}
-
-abstract class Connection {
-  bool get isClosed;
-
+abstract class Connection implements Closable {
   Future<QueryResult> executeQuery(String query);
 
-  Future<PreparedStatement> prepareQuery(String query);
+  // TODO statement
+  // Future<PreparedStatement> prepareQuery(String query);
+}
 
-  Future close();
+abstract class CommandResult implements Closable {}
+
+abstract class DataIterator implements Closable {
+  Future<bool> next();
+
+  // TODO qui si potrebbe utilizzare il FutureWrapper
+  rawNext();
+}
+
+abstract class RowIterator implements DataIterator {
+  String getStringValue(int index);
+
+  num getNumValue(int index);
+
+  bool getBoolValue(int index);
 }
 
 abstract class QueryResult implements CommandResult, RowIterator {
@@ -107,6 +126,8 @@ abstract class QueryResult implements CommandResult, RowIterator {
   Future<List<List>> getNextRows();
 }
 
+// TODO statement
+/*
 abstract class PreparedStatement implements CommandResult {
   int get parameterCount;
 
@@ -116,34 +137,8 @@ abstract class PreparedStatement implements CommandResult {
 
   List<ColumnDefinition> get columns;
 
-  bool get isClosed;
-
   void setParameter(int index, value, [SqlType sqlType]);
 
   Future<QueryResult> executeQuery();
 }
-
-abstract class CommandResult {
-  Future free();
-
-  Future close();
-}
-
-abstract class DataIterator {
-  bool get isClosed;
-
-  Future<bool> next();
-
-  // TODO qui si potrebbe utilizzare il FutureWrapper
-  rawNext();
-
-  Future close();
-}
-
-abstract class RowIterator implements DataIterator {
-  String getStringValue(int index);
-
-  num getNumValue(int index);
-
-  bool getBoolValue(int index);
-}
+*/
