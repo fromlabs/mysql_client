@@ -8,15 +8,45 @@ import "dart:async";
 import 'package:mysql_client/mysql_client.dart';
 import "package:stack_trace/stack_trace.dart";
 
+// sudo ngrep -x -q -d lo0 '' 'port 3306'
+
 Future main() async {
   Chain.capture(() async {
     try {
-      await test21();
+      await test5();
     } catch (e, s) {
       print(e);
       print(Trace.format(s));
     }
   });
+}
+
+Future test5() async {
+  var connection;
+
+  try {
+    connection = await new ConnectionFactory()
+        .connect("localhost", 3306, "root", "mysql", "test");
+
+    var queryResult =
+        await connection.executeQuery("SELECT * FROM people LIMIT 10");
+
+    // column count
+    var columnCount = queryResult.columnCount;
+    print(columnCount);
+
+    // rows
+    while (true) {
+      var next = await queryResult.next();
+      if (!next) {
+        break;
+      }
+
+      print(queryResult.getNumValue(0));
+    }
+  } finally {
+    await connection.close();
+  }
 }
 
 Future test21() async {
@@ -370,37 +400,6 @@ Future test6() async {
     }
 
     queryResult = await connection.executeQuery("SELECT * FROM people LIMIT 0");
-  } catch (e, s) {
-    print("Error: $e");
-    print(new Chain.forTrace(s).terse);
-  } finally {
-    await connection.close();
-  }
-}
-
-Future test5() async {
-  var connection;
-
-  try {
-    connection = await new ConnectionFactory()
-        .connect("localhost", 3306, "root", "mysql", "test");
-
-    var queryResult =
-        await connection.executeQuery("SELECT * FROM people LIMIT 10");
-
-    // column count
-    var columnCount = queryResult.columnCount;
-    print(columnCount);
-
-    // rows
-    while (true) {
-      var next = await queryResult.next();
-      if (!next) {
-        break;
-      }
-
-      print(queryResult.getNumValue(0));
-    }
   } catch (e, s) {
     print("Error: $e");
     print(new Chain.forTrace(s).terse);

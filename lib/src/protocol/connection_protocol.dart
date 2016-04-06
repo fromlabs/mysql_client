@@ -176,15 +176,14 @@ class ConnectionProtocol extends ProtocolDelegate {
 
     if (authPluginName == "mysql_native_password") {
       // SHA1( password ) XOR SHA1( "20-bytes random data from server" <concat> SHA1( SHA1( password ) ) )
-      var passwordSha1 = (new SHA1()..add(encodedPassword)).close();
-      var passwordSha1Sha1 = (new SHA1()..add(passwordSha1)).close();
-      var hash = (new SHA1()..add(encodedAuthPluginData)..add(passwordSha1Sha1))
-          .close();
-
+      var passwordSha1 = sha1.convert(encodedPassword);
+      var passwordSha1Sha1 = sha1.convert(passwordSha1.bytes);
+      var hash = sha1.convert(
+          new List.from(encodedAuthPluginData)..addAll(passwordSha1Sha1.bytes));
       var buffer = new StringBuffer();
-      var generatedHash = new List<int>(hash.length);
+      var generatedHash = new List<int>(hash.bytes.length);
       for (var i = 0; i < generatedHash.length; i++) {
-        buffer.writeCharCode(hash[i] ^ passwordSha1[i]);
+        buffer.writeCharCode(hash.bytes[i] ^ passwordSha1.bytes[i]);
       }
       response = buffer.toString();
     } else {

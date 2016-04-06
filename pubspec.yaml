@@ -5,10 +5,10 @@ version: 0.0.1
 #homepage: https://www.example.com
 
 environment:
-  sdk: '>=1.13.0 <2.0.0'
+  sdk: '>=1.15.0 <2.0.0'
 
 dependencies:
-  crypto: "^0.9.1"
+  crypto: "^1.0.0"
   pool: "^1.2.1"
 dev_dependencies:
   stack_trace: "^1.6.0"

@@ -268,14 +268,57 @@ class ConnectionImpl extends ClosableImpl implements Connection {
 
   ConnectionImpl(this._socket, this._protocol);
 
+  Future<QueryResult> executeQuery(String query) async {
+    var request = await requestQueryExecution(query);
+
+    return await request.response;
+  }
+
+  Future<CommandRequest> requestQueryExecution(String query) async {
+    _checkClosed();
+
+    return _requestCommandExecution(() async {
+      try {
+        _protocol.queryCommandTextProtocol.writeCommandQueryPacket(query);
+
+        var response =
+        await _protocol.queryCommandTextProtocol.readCommandQueryResponse();
+
+        if (response is OkPacket) {
+          return new CommandQueryResultImpl.ok(
+              response.affectedRows, response.lastInsertId, this);
+        } else if (response is ResultSetColumnCountPacket) {
+          List<ColumnDefinition> columns = new List(response.columnCount);
+          var columnIterator =
+          new QueryColumnIteratorImpl(columns.length, this);
+          var hasColumn = columns.length > 0;
+          var i = 0;
+          while (hasColumn) {
+            hasColumn = await columnIterator.rawNext();
+            if (hasColumn) {
+              columns[i++] = new ColumnDefinition(
+                  columnIterator.name, columnIterator.type);
+            }
+          }
+
+          return new CommandQueryResultImpl.resultSet(columns, this);
+        } else {
+          throw new QueryError(response.errorMessage);
+        }
+      } finally {
+        _protocol.queryCommandTextProtocol.free();
+      }
+    });
+  }
+
   @override
   Future<QueryResult> executeQuery(String query) async {
     _checkClosed();
 
-    try {
-      _protocol.queryCommandTextProtocol.writeCommandQueryPacket(query);
+    return await _reserveCommandExecution(() async {
+      try {
+        _protocol.queryCommandTextProtocol.writeCommandQueryPacket(query);
 
-      var result = await _reserveCommandExecution(() async {
         var response =
             await _protocol.queryCommandTextProtocol.readCommandQueryResponse();
 
@@ -300,12 +343,10 @@ class ConnectionImpl extends ClosableImpl implements Connection {
         } else {
           throw new QueryError(response.errorMessage);
         }
-      });
-
-      return result;
-    } finally {
-      _protocol.queryCommandTextProtocol.free();
-    }
+      } finally {
+        _protocol.queryCommandTextProtocol.free();
+      }
+    });
   }
 
   // TODO statement
@@ -365,6 +406,19 @@ class ConnectionImpl extends ClosableImpl implements Connection {
     return request._result;
   }
 */
+
+  Future _free() async {
+    // TODO chiusura delle richieste pending (forse meglio chiamarlo abort)
+    try {
+      var requestToClose = new List.from(_requests);
+      for (var request in requestToClose) {
+        await request.close();
+      }
+    } finally {
+      _requests.clear();
+    }
+  }
+
   @override
   Future _closeInternal() async {
     try {
@@ -381,8 +435,6 @@ class ConnectionImpl extends ClosableImpl implements Connection {
 
       try {
         await _socket.close();
-
-        // TODO chiudo tutti gli eventuali statement ancora aperti (senza inviare la richiesta di chiusura del protocollo)
       } catch (e, s) {
         _logger.info("Error closing connection socket", e, s);
 
@@ -406,17 +458,6 @@ class ConnectionImpl extends ClosableImpl implements Connection {
     }
   }
 
-  Future _free() async {
-    try {
-      var requestToClose = new List.from(_requests);
-      for (var request in requestToClose) {
-        await request.close();
-      }
-    } finally {
-      _requests.clear();
-    }
-  }
-
   Future<CommandResult> _reserveCommandExecution(Command command) async {
     var request = new CommandRequest();
 
@@ -429,8 +470,6 @@ class ConnectionImpl extends ClosableImpl implements Connection {
 
     // add to the queue
     _requests.addLast(request);
-
-    print(_requests);
 
     // TODO devo aspettare finchè la richiesta diventa la prima
     if (_requests.length > 1) {
@@ -486,8 +525,8 @@ abstract class BaseQueryResultImpl extends ClosableImpl implements QueryResult {
         this.lastInsertId = null {
     this._rowIterator = _createRowIterator();
 
-    // TODO gestire chiusura
-    this._rowIterator.onClose;
+    // TODO gestire l'ascolto della chiusura del row iterator con propagazione dell'evento
+    // this._rowIterator.onClose;
   }
 
   // TODO gestire chiusura
@@ -741,7 +780,6 @@ abstract class BaseDataIteratorImpl extends ClosableImpl
   _skipDataResponse();
   _free();
 
-  // TODO gestire chiusura
   @override
   Future close() async {
     if (!_isClosed) {
@@ -751,6 +789,7 @@ abstract class BaseDataIteratorImpl extends ClosableImpl
         hasNext = hasNext is Future ? await hasNext : hasNext;
       }
 
+      // TODO gestire la notifica dell'evento di chiusura
       _isClosed = true;
     }
   }
@@ -784,6 +823,7 @@ abstract class BaseDataIteratorImpl extends ClosableImpl
     if (_isDataPacket(packet)) {
       return true;
     } else {
+      // TODO gestire la notifica dell'evento di chiusura
       _isClosed = true;
       _free();
       return false;
@@ -859,13 +899,15 @@ class CommandQueryRowIteratorImpl extends BaseQueryRowIteratorImpl {
   CommandQueryRowIteratorImpl(CommandQueryResultImpl result) : super(result);
 
   @override
-  String getStringValue(int index) => _result._connection._protocol
-      .queryCommandTextProtocol.reusableRowPacket.getUTF8String(index);
+  String getStringValue(int index) =>
+      _result._connection._protocol.queryCommandTextProtocol.reusableRowPacket
+          .getUTF8String(index);
 
   @override
   num getNumValue(int index) {
-    var formatted = _result._connection._protocol.queryCommandTextProtocol
-        .reusableRowPacket.getString(index);
+    var formatted = _result
+        ._connection._protocol.queryCommandTextProtocol.reusableRowPacket
+        .getString(index);
     return formatted != null ? num.parse(formatted) : null;
   }
 
