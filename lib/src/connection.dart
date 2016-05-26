@@ -33,18 +33,6 @@ class QueryError extends Error {
   String toString() => "QueryError: $message";
 }
 
-// TODO statement
-/*
-class PreparedStatementError extends Error {
-  final String message;
-
-  PreparedStatementError(this.message);
-
-  @override
-  String toString() => "PreparedStatementError: $message";
-}
-*/
-
 class ColumnDefinition {
   final String name;
   final int type;
@@ -67,32 +55,14 @@ abstract class Closable {
   Future close();
 }
 
-abstract class ConnectionPool implements Closable {
-  factory ConnectionPool(
-          {host,
-          int port,
-          String userName,
-          String password,
-          String database,
-          int maxConnections,
-          Duration connectionTimeout}) =>
-      new ConnectionPoolImpl(
-          host: host,
-          port: port,
-          userName: userName,
-          password: password,
-          database: database,
-          maxConnections: maxConnections,
-          connectionTimeout: connectionTimeout);
-
-  Future<Connection> request();
-}
-
 abstract class Connection implements Closable {
   Future<QueryResult> executeQuery(String query);
 
-  // TODO statement
-  // Future<PreparedStatement> prepareQuery(String query);
+  CommandRequest requestQueryExecution(String query);
+}
+
+abstract class CommandRequest implements Closable {
+  Future<CommandResult> get response;
 }
 
 abstract class CommandResult implements Closable {}
@@ -125,20 +95,3 @@ abstract class QueryResult implements CommandResult, RowIterator {
   // TODO aggiungere hint tipo sql per il recupero
   Future<List<List>> getNextRows();
 }
-
-// TODO statement
-/*
-abstract class PreparedStatement implements CommandResult {
-  int get parameterCount;
-
-  int get columnCount;
-
-  List<ColumnDefinition> get parameters;
-
-  List<ColumnDefinition> get columns;
-
-  void setParameter(int index, value, [SqlType sqlType]);
-
-  Future<QueryResult> executeQuery();
-}
-*/
