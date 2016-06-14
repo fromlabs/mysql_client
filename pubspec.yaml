@@ -1,8 +1,8 @@
 name: mysql_client
 description: A starting point for Dart libraries or applications.
 version: 0.0.1
-#author: Your Name <email@example.com>
-#homepage: https://www.example.com
+author: Roberto Tassi <roberto.tassi@fromlabs.org>
+homepage: https://github.com/fromlabs/mysql_client
 
 environment:
   sdk: '>=1.15.0 <2.0.0'
